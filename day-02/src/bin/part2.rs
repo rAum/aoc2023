@@ -10,8 +10,6 @@ fn main() {
 fn parse_line(line: &str) -> usize {
     // line has format Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
     let game_rounds: Vec<&str> = line.split(":").collect();
-    let game_num = game_rounds[0]
-        .split_whitespace().nth(1).unwrap().trim().parse::<usize>().unwrap();
     let all_rounds: Vec<&str> = game_rounds[1].split(";").collect();
 
     let mut parsed_rounds: Vec<Vec<(usize, usize)>> = Vec::new();
