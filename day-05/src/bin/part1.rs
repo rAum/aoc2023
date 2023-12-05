@@ -1,8 +1,5 @@
-use std::{
-    cmp::max,
-    cmp::min,
-    collections::{HashMap, HashSet},
-};
+use std::{collections::{HashSet, HashMap}, cmp::min, cmp::max};
+
 
 fn main() {
     let input = include_str!("input.txt");
@@ -24,25 +21,22 @@ struct Ranges {
 
 impl Ranges {
     fn new(dst_beg: usize, src_beg: usize, len: usize) -> Ranges {
-        Ranges {
-            dst: Range::new(dst_beg, len),
-            src: Range::new(src_beg, len),
-        }
+        Ranges { dst: Range::new(dst_beg, len), src: Range::new(src_beg, len) }
     }
 }
 
 use regex::Regex;
 use std::str::FromStr;
 
+
+
 impl Range {
+
     fn new(beg: usize, len: usize) -> Range {
-        Range {
-            beg,
-            end: beg + len,
-        }
+        Range { beg, end: beg + len }
     }
 
-    fn in_range(&self, num: usize) -> bool {
+    fn in_range(&self, num : usize) -> bool {
         num >= self.beg && num < self.end
     }
 
@@ -52,9 +46,9 @@ impl Range {
     }
 
     fn union(&self, other: &Range) -> Range {
-        Range {
-            beg: min(self.beg, other.beg),
-            end: max(self.end, other.end),
+        Range { 
+            beg: min(self.beg, other.beg), 
+            end: max(self.end, other.end)
         }
     }
 
@@ -83,18 +77,15 @@ fn lookup(seed: usize, ranges: &Vec<Ranges>) -> usize {
 
 fn parse_ranges(input: &str) -> Vec<Ranges> {
     let re = Regex::new(r"(\d+) (\d+) (\d+)").unwrap();
-    let output: Vec<Ranges> = input
-        .lines()
-        .skip(1)
-        .map(|line| {
-            let cap = re.captures(line).unwrap();
-            let dst = usize::from_str(&cap[1]).unwrap();
-            let src = usize::from_str(&cap[2]).unwrap();
-            let len = usize::from_str(&cap[3]).unwrap();
-            println!("{} {}, {}", dst, src, len);
-            Ranges::new(dst, src, len)
-        })
-        .collect();
+    let output: Vec<Ranges> = input.lines()
+    .skip(1)
+    .map(|line| {
+        let cap = re.captures(line).unwrap();
+        let dst = usize::from_str(&cap[1]).unwrap();
+        let src = usize::from_str(&cap[2]).unwrap();
+        let len = usize::from_str(&cap[3]).unwrap();
+        Ranges::new(dst, src, len)
+    }).collect();
     output
 }
 
@@ -108,17 +99,25 @@ fn lookup_all(seed: usize, maps: &Vec<Vec<Ranges>>) -> usize {
 
 fn solution(input: &str) -> usize {
     let input: Vec<&str> = input.split("\r\n\r\n").collect();
+
+    let maps = vec![
+        "seed-to-soil map:", 
+        "soil-to-fertilizer map:", 
+        "fertilizer-to-water map:",
+        "water-to-light map:",
+        "light-to-temperature map:",
+        "temperature-to-humidity map:",
+        "humidity-to-location map:"
+        ];
     let seeds = parse_seeds(input[0]);
     let mut maps_v = Vec::new();
     for i in 1..=maps.len() {
         maps_v.push(parse_ranges(input[i]));
     }
 
-    seeds
-        .iter()
-        .map(|seed| lookup_all(*seed, &maps_v))
-        .min()
-        .unwrap()
+    seeds.iter().map(|seed| {
+        lookup_all(*seed, &maps_v)
+    }).min().unwrap()
 }
 
 #[cfg(test)]
@@ -127,7 +126,7 @@ mod tests {
 
     #[test]
     fn test_range() {
-        let a = Range { beg: 1, end: 3 };
+        let a = Range{beg: 1, end: 3};
         assert_eq!(a.len(), 2);
         let b = Range::new(2, 2);
         assert_eq!(b.len(), 2);
