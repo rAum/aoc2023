@@ -9,3 +9,7 @@ cargo run part1
 cargo test run part2
 cargo test run part2 -- --no-capture
 ```
+
+```Powershell
+Measure-Command { cargo run --release --bin part2 }
+```
