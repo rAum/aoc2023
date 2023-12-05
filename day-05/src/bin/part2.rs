@@ -1,8 +1,4 @@
-use std::{
-    cmp::max,
-    cmp::min,
-    collections::{HashMap, HashSet},
-};
+
 
 use rayon::prelude::*;
 
@@ -108,30 +104,10 @@ fn solution(input: &str) -> usize {
         maps_v.push(parse_ranges(input[i]));
     }
 
-    // let mut all_seeds: Vec<usize> = Vec::new();
-    // for i in (0..seeds.len()).step_by(2) {
-    //     let a = seeds[i];
-    //     let b = a + seeds[i+1];
-    //     for seed in a..b {
-    //         all_seeds.push(seed);
-    //     }
-    // }
-
-    // let m = (0..all_seeds.len()).into_par_iter().map(|i| {
-    //     let s = all_seeds[i];
-    //     lookup_all(s, &maps_v)
-    // }).min().unwrap();
-
     let mut m = usize::max_value();
     for i in (0..seeds.len()).step_by(2) {
         let a = seeds[i];
         let b = a + seeds[i+1];
-        // for seed in a..b {
-        //     let dst = lookup_all(seed, &maps_v);
-        //     if dst < m {
-        //         m = dst;
-        //     }
-        // }
         println!("Processing seeds [{},{})", a, b);
         let n = (a..b).into_par_iter().map(|seed| {
             lookup_all(seed, &maps_v)
