@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::{str::{FromStr}, cmp::Ordering};
+use std::{cmp::Ordering, str::FromStr};
 
 fn main() {
     let input = include_str!("input.txt");
@@ -22,7 +22,11 @@ struct Hand {
 impl CamelPoker {
     fn new() -> CamelPoker {
         // 13 cards
-        CamelPoker { cards_rank: vec!['A', 'K', 'Q', 'T', '9', '8', '7', '6', '5', '4', '3', '2', 'J'] }
+        CamelPoker {
+            cards_rank: vec![
+                'A', 'K', 'Q', 'T', '9', '8', '7', '6', '5', '4', '3', '2', 'J',
+            ],
+        }
     }
 
     fn rank_card(&self, card: char) -> usize {
@@ -83,24 +87,21 @@ impl CamelPoker {
 
         if max_count == 1 {
             return 1; // high card
-        }
-        else if max_count == 2 {
+        } else if max_count == 2 {
             let pairs = counts.iter().filter(|&c| *c == 2).count();
             if pairs == 1 {
                 return 2; // one pair
             } else {
                 return 3; // two pairs
             }
-        }
-        else if max_count == 3 {
+        } else if max_count == 3 {
             let is_pair = counts.iter().any(|c| *c == 2);
             if is_pair {
                 return 5; // full house
             } else {
                 return 4; // three of kind
             }
-        }
-        else if max_count > 3 {
+        } else if max_count > 3 {
             return max_count as u32 + 2;
         }
         panic!("max count is is invalid!");
@@ -108,7 +109,6 @@ impl CamelPoker {
 }
 
 impl Hand {
-
     fn compare_high_cards(&self, other: &Hand) -> Ordering {
         for (left, right) in self.cards_rank.iter().zip(other.cards_rank.iter()) {
             match left.cmp(right) {
@@ -146,12 +146,15 @@ impl Ord for Hand {
 fn solution(input: &str) -> usize {
     let rules = CamelPoker::new();
 
-    let mut all_hands: Vec<Hand> = input.lines().map(|line| {
-        let line: Vec<&str> = line.split_whitespace().collect();
-        let hand = line.iter().nth(0).unwrap();
-        let bid = usize::from_str(line.iter().nth(1).unwrap()).unwrap();
-        rules.hand(hand, bid)
-    }).collect();
+    let mut all_hands: Vec<Hand> = input
+        .lines()
+        .map(|line| {
+            let line: Vec<&str> = line.split_whitespace().collect();
+            let hand = line.iter().nth(0).unwrap();
+            let bid = usize::from_str(line.iter().nth(1).unwrap()).unwrap();
+            rules.hand(hand, bid)
+        })
+        .collect();
 
     all_hands.sort();
 
