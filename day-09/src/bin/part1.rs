@@ -15,8 +15,8 @@ fn extrapolate(seq: &Vec<i32>) -> i32 {
         let prev = stack.last().unwrap();
         let mut s = Vec::new();
         s.resize(prev.len() - 1, 0);
-        for i in 0..prev.len()-1 {
-            s[i] = prev[i+1] - prev[i];
+        for i in 0..prev.len() - 1 {
+            s[i] = prev[i + 1] - prev[i];
         }
         if s.iter().all(|x| *x == 0) {
             reduced = true;
@@ -25,7 +25,7 @@ fn extrapolate(seq: &Vec<i32>) -> i32 {
     }
 
     let mut acc = 0;
-    for i in (0..stack.len()-1).rev() {
+    for i in (0..stack.len() - 1).rev() {
         acc = stack[i].last().unwrap() + acc;
     }
     acc
