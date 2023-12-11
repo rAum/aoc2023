@@ -67,8 +67,8 @@ impl PipeMaze {
         for y in 0..self.h {
             for x in 0..self.w {
                 let f = match self.fence[y as usize][x as usize] {
-                    true => self.map[y as usize][x as usize],
-                    false => '.',
+                    true => PipeMaze::to_ascii(self.map[y as usize][x as usize]),
+                    false => ' ',
                 };
                 print!("{}", f);
             }
@@ -81,7 +81,7 @@ impl PipeMaze {
         println!();
         for y in 0..self.h {
             for x in 0..self.w {
-                print!("{}", self.map[y as usize][x as usize]);
+                print!("{}", PipeMaze::to_ascii(self.map[y as usize][x as usize]));
             }
             println!();
         }
@@ -97,6 +97,18 @@ impl PipeMaze {
             '7' => Some(((1, 0), (0, -1))),
             'F' => Some(((1, 0), (0, 1))),
             _ => None,
+        }
+    }
+
+    fn to_ascii(el: char) -> char {
+        match el {
+            '|' => '║',
+            '-' => '═',
+            'L' => '╚',
+            'J' => '╝',
+            '7' => '╗',
+            'F' => '╔',
+            _ => ' ',
         }
     }
 
