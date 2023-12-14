@@ -1,6 +1,4 @@
-use core::fmt;
 use regex::Regex;
-use std::fmt::Display;
 
 fn main() {
     let input = include_str!("input.txt");
@@ -47,7 +45,7 @@ fn solve(seq: &[char], i: usize, springs: &[i32]) -> i32 {
         return 0;
     }
 
-    let (spring, rest_springs) =  unsafe { springs.split_first().unwrap_unchecked() };
+    let (spring, rest_springs) = unsafe { springs.split_first().unwrap_unchecked() };
     let mut result = 0;
     if is_spring_matching(seq, i, *spring) {
         let offset = i + *spring as usize + 1;
@@ -96,6 +94,13 @@ mod tests {
     fn test_solution(#[case] input: &str, #[case] answer: i32) {
         let result = solution(input);
         assert_eq!(result, answer);
+    }
+
+    #[test]
+    fn test_solution2() {
+        let input = include_str!("test1.txt");
+        let result = solution(input);
+        assert_eq!(result, 21);
     }
 
     #[rstest]
