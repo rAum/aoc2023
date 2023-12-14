@@ -40,26 +40,17 @@ fn count_mirror_vertical(rocks: &Vec<Vec<char>>) -> usize {
     0
 }
 
-fn count(rocks: Vec<Vec<char>>) -> (usize, usize) {
+fn count(rocks: Vec<Vec<char>>) -> usize {
     let vertical = count_mirror_vertical(&rocks);
     let horizontal = count_mirror_vertical(&transpose(&rocks));
-    println!("{} {}", vertical, horizontal);
-    (vertical, horizontal)
+    100 * vertical + horizontal
 }
 
 fn solution(input: &str) -> usize {
-    let s = input
+    input
         .split("\r\n\r\n")
         .into_iter()
         .map(to_array)
         .map(count)
-        .collect::<Vec<_>>();
-
-    let mut v = 0;
-    let mut h = 0;
-    s.iter().for_each(|(a, b)| {
-        v += a;
-        h += b
-    });
-    100 * v + h
+        .sum()
 }
