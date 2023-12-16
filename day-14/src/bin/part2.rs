@@ -1,4 +1,4 @@
-use std::{collections::HashSet, ops::Add};
+use std::collections::HashSet;
 
 fn main() {
     let input = include_str!("input.txt");
@@ -15,18 +15,6 @@ fn transpose(matrix: &Vec<Vec<char>>) -> Vec<Vec<char>> {
     (0..width)
         .map(|i| matrix.iter().map(|row| row[i]).collect())
         .collect()
-}
-
-fn print(rocks: &Vec<Vec<char>>) {
-    let h = rocks.len();
-    let w = rocks.first().unwrap().len();
-    for y in 0..h {
-        for x in 0..w {
-            print!("{}", rocks[y][x]);
-        }
-        println!();
-    }
-    println!("------------------");
 }
 
 fn slide(rocks: &Vec<Vec<char>>, dir: bool, do_transpose: bool) -> Vec<Vec<char>> {
@@ -116,7 +104,7 @@ fn solution(input: &str) -> usize {
         cycle_len,
         partials.len()
     );
-    let chosen = &partials[(cycle_offset + (cycles - cycle_offset) % cycle_len)];
+    let chosen = &partials[cycle_offset + (cycles - cycle_offset) % cycle_len];
     calc_weight(chosen)
 }
 
