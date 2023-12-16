@@ -13,7 +13,7 @@ enum Dir {
     Top = 1,
     Down = 2,
     Right = 4,
-    Left = 8
+    Left = 8,
 }
 
 fn dir_to_v(dir: Dir) -> (i32, i32) {
@@ -31,7 +31,7 @@ fn v_to_dir(v: (i32, i32)) -> Dir {
         (1, 0) => Dir::Down,
         (0, 1) => Dir::Right,
         (0, -1) => Dir::Left,
-        _ => panic!("Wrong vector!")
+        _ => panic!("Wrong vector!"),
     }
 }
 
@@ -67,7 +67,7 @@ fn solution(input: &str) -> usize {
 
     print!("\x1B[2J\x1B[1;1H");
     print(&res);
-    
+
     let mut n = 0;
     while !q.is_empty() {
         let (pos, dir) = q.pop_back().unwrap();
@@ -85,14 +85,13 @@ fn solution(input: &str) -> usize {
         // keep track if we have visited field
         // from a given direction
         let d = v_to_dir(dir);
-        
+
         if let Some(v) = visited.get_mut(&pos) {
             if *v & (d as u32) != 0 {
                 // we already ended on the same field
                 // coming from the same direction
                 continue;
-            }
-            else {
+            } else {
                 *v = (*v | (d as u32)) as u32;
             }
         } else {
@@ -103,9 +102,10 @@ fn solution(input: &str) -> usize {
 
         let field = grid[pos.0 as usize][pos.1 as usize];
 
-        if field == '.' 
+        if field == '.'
             || (field == '-' && (d == Dir::Left || d == Dir::Right))
-            || (field == '|' && (d == Dir::Top || d == Dir::Down)) {
+            || (field == '|' && (d == Dir::Top || d == Dir::Down))
+        {
             q.push_back((add(pos, dir), dir));
         } else if field == '\\' {
             let new_dir = match d {
@@ -125,7 +125,7 @@ fn solution(input: &str) -> usize {
             };
             let new_pos = add(pos, new_dir);
             q.push_back((new_pos, new_dir));
-        } else if field == '-' && (d == Dir::Top || d == Dir::Down){
+        } else if field == '-' && (d == Dir::Top || d == Dir::Down) {
             let left = dir_to_v(Dir::Left);
             q.push_back((add(pos, left), left));
             let right = dir_to_v(Dir::Right);
