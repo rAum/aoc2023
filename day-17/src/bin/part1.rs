@@ -1,4 +1,8 @@
-use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+use std::time::Duration;
+use std::{
+    collections::{BinaryHeap, HashMap, HashSet, VecDeque},
+    thread,
+};
 
 fn main() {
     let input = include_str!("input");
@@ -96,7 +100,7 @@ impl Vec2 {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)]
 struct Node {
     pos: Vec2,
     dir: Dir,
@@ -123,32 +127,136 @@ fn all_neighbours(pos: Vec2, w: usize, h: usize) -> impl Iterator<Item = Node> {
         .flatten()
 }
 
+fn opposite_dir(dir: Dir) -> Dir {
+    match dir {
+        Dir::N => Dir::S,
+        Dir::S => Dir::N,
+        Dir::W => Dir::E,
+        Dir::E => Dir::W,
+    }
+}
+
+/// Calculates directly cost for a given movement
+fn calc_cost(costs: &Vec<Vec<u32>>, node: &Node) -> u32 {
+    let steps = node.len;
+    let dir = opposite_dir(node.dir);
+
+    let movement_cost = (0..steps)
+        .map(|l| {
+            let curr = node.pos.mov(dir, l);
+            costs[curr.y][curr.x]
+        })
+        .sum();
+    movement_cost
+}
+
+#[derive(Debug, Ord, Eq)]
+struct CostNode {
+    cost: u32,
+    node: Node,
+}
+
+impl PartialEq for CostNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.cost.eq(&other.cost)
+    }
+}
+
+impl PartialOrd for CostNode {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        // seriously, is there nothing better?
+        match self.cost.partial_cmp(&other.cost) {
+            Some(std::cmp::Ordering::Less) => Some(std::cmp::Ordering::Greater),
+            Some(std::cmp::Ordering::Greater) => Some(std::cmp::Ordering::Less),
+            Some(std::cmp::Ordering::Equal) => Some(std::cmp::Ordering::Equal),
+            None => None,
+        }
+    }
+}
+
+fn is_valid_move(curr: &Node, next: &Node) -> bool {
+    // if curr.dir == next.dir && next.len + curr.len <= 3 {
+    //     return true;
+    // }
+    // if curr.dir == next.dir {
+    //     return false;
+    // }
+    // let opp = opposite_dir(curr.dir);
+    // if opp == next.dir && next.len == curr.len {
+    //     return false; // don't go back
+    // }
+    // if curr.dir != next.dir {
+    //     return true;
+    // }
+    // false
+    true
+}
+
 fn find_path(costs: &Vec<Vec<u32>>) -> u32 {
     let start_pos = Vec2 { x: 0, y: 0 };
     let h = costs.len();
     let w = costs.first().unwrap().len();
-    let end_pos = (h as u32 - 1, w as u32 - 1);
+    let end_pos = Vec2 { x: w - 1, y: h - 1 };
 
-    let mut q = BinaryHeap::new();
+    let mut frontier = BinaryHeap::new();
+    let mut node_cost = HashMap::with_capacity(w * h * 3 * 4);
+    let mut visited = HashSet::with_capacity(w * h * 3 * 4);
 
     // add initial moves
-    let starting_points = all_neighbours(start_pos, w, h);
+    for step in all_neighbours(start_pos, w, h) {
+        let cost = calc_cost(costs, &step);
+        frontier.push(CostNode {
+            cost: calc_cost(costs, &step),
+            node: step,
+        });
+        node_cost.insert(step, cost);
+    }
 
+    while !frontier.is_empty() {
+        let curr = frontier.pop().unwrap();
 
-    // q.push(start_pos);
+        // we already processed given 
+        if visited.contains(&curr.node) {
+            continue;
+        }
+        // mark this node as visited
+        visited.insert(curr.node);
+        // have we reached goal?
 
-    // let mut visited = HashMap::with_capacity(w * h);
+        if curr.node.pos == end_pos {
+            let total_cost =  *node_cost.get(&curr.node).unwrap();
+            println!("Reached goal {:#?}", curr.node);
+            return total_cost;
+        }
 
-    // while !q.is_empty() {
-    //     let curr = q.pop().unwrap();
+        let neighbours = all_neighbours(curr.node.pos, w, h)
+            .filter(|n| is_valid_move(&curr.node, n));
 
-    //     // get neighbours...
+        let curr_total_cost = *node_cost.get(&curr.node).unwrap();
 
-    //     if curr == end_pos {
-    //         return
-    //     }
-    // }
-    0
+        for next in neighbours {
+            let next_total_move_cost = calc_cost(costs, &next) + curr_total_cost;
+
+            if let Some(old_cost) = node_cost.get_mut(&next) {
+                if *old_cost > next_total_move_cost {
+                    *old_cost = next_total_move_cost;
+                    frontier.push(CostNode {
+                        cost: next_total_move_cost,
+                        node: next,
+                    });
+                } else {
+                    // nothing to do  - longer path.
+                }
+            } else { // infinity node
+                frontier.push(CostNode {
+                    cost: next_total_move_cost,
+                    node: next,
+                });
+                node_cost.insert(next, next_total_move_cost);
+            }
+        }
+    }
+    panic!("Failed to reach end goal :(");
 }
 
 fn solution(input: &str) -> usize {
@@ -156,12 +264,8 @@ fn solution(input: &str) -> usize {
         .lines()
         .map(|line| line.chars().map(|c| (c as u8 - b'0') as u32).collect())
         .collect();
-    let mut res = grid.clone();
-    let h = grid.len() as i32;
-    let w = grid.first().unwrap().len() as i32;
-
     print(&grid);
-    0
+    find_path(&grid) as usize
 }
 
 #[cfg(test)]
@@ -174,7 +278,11 @@ mod tests {
     #[case(1, 0, 7)]
     #[case(4, 4, 3 * 4)]
     #[case(9, 9, 6)]
-    fn test_neighbours(#[case] x: usize, #[case] y: usize, #[case] expected_neighbours_count: usize) {
+    fn test_neighbours(
+        #[case] x: usize,
+        #[case] y: usize,
+        #[case] expected_neighbours_count: usize,
+    ) {
         let all_pos: Vec<_> = all_neighbours(Vec2 { x, y }, 10, 10).collect();
         assert_eq!(all_pos.len(), expected_neighbours_count);
     }
