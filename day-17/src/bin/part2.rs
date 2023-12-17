@@ -6,18 +6,6 @@ fn main() {
     println!("Result: {}", result);
 }
 
-fn print(grid: &Vec<Vec<u32>>) {
-    let h = grid.len();
-    let w = grid.first().unwrap().len();
-    for y in 0..h {
-        for x in 0..w {
-            print!("{}", grid[y][x]);
-        }
-        println!();
-    }
-    println!("--------------");
-}
-
 #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Dir {
     N,
@@ -60,39 +48,24 @@ impl Vec2 {
                 if self.y < len {
                     return None;
                 };
-                Some(Vec2 {
-                    x: self.x,
-                    y: self.y - len,
-                })
             }
             Dir::S => {
                 if self.y + len >= h {
                     return None;
                 };
-                Some(Vec2 {
-                    x: self.x,
-                    y: self.y + len,
-                })
             }
             Dir::W => {
                 if self.x < len {
                     return None;
                 };
-                Some(Vec2 {
-                    x: self.x - len,
-                    y: self.y,
-                })
             }
             Dir::E => {
                 if self.x + len >= w {
                     return None;
                 }
-                Some(Vec2 {
-                    x: self.x + len,
-                    y: self.y,
-                })
             }
         }
+        Some(self.mov(dir, len))
     }
 }
 
@@ -260,7 +233,7 @@ fn solution(input: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-  
+
     #[test]
     fn test_solution() {
         let input = r#"2413432311323

@@ -6,18 +6,6 @@ fn main() {
     println!("Result: {}", result);
 }
 
-fn print(grid: &Vec<Vec<u32>>) {
-    let h = grid.len();
-    let w = grid.first().unwrap().len();
-    for y in 0..h {
-        for x in 0..w {
-            print!("{}", grid[y][x]);
-        }
-        println!();
-    }
-    println!("--------------");
-}
-
 #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Dir {
     N,
