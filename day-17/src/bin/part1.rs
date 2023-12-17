@@ -30,6 +30,17 @@ enum Dir {
     E,
 }
 
+impl Dir {
+    fn as_char(&self) -> char {
+        match self {
+            Dir::N => '^',
+            Dir::S => 'v',
+            Dir::W => '<',
+            Dir::E => '>',
+        }
+    }
+}
+
 #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct Vec2 {
     x: usize,
@@ -175,21 +186,14 @@ impl PartialOrd for CostNode {
 }
 
 fn is_valid_move(curr: &Node, next: &Node) -> bool {
-    // if curr.dir == next.dir && next.len + curr.len <= 3 {
-    //     return true;
-    // }
-    // if curr.dir == next.dir {
-    //     return false;
-    // }
-    // let opp = opposite_dir(curr.dir);
-    // if opp == next.dir && next.len == curr.len {
-    //     return false; // don't go back
-    // }
-    // if curr.dir != next.dir {
-    //     return true;
-    // }
-    // false
-    true
+    // do not go back nor do not go the same direction
+    if curr.dir == opposite_dir(next.dir) {
+        return false;
+    }
+    if curr.dir != next.dir {
+        return true;
+    }
+    false
 }
 
 fn find_path(costs: &Vec<Vec<u32>>) -> u32 {
@@ -199,8 +203,8 @@ fn find_path(costs: &Vec<Vec<u32>>) -> u32 {
     let end_pos = Vec2 { x: w - 1, y: h - 1 };
 
     let mut frontier = BinaryHeap::new();
-    let mut node_cost = HashMap::with_capacity(w * h * 3 * 4);
-    let mut visited = HashSet::with_capacity(w * h * 3 * 4);
+    let mut node_cost: HashMap<Node, u32> = HashMap::with_capacity(w * h * 3 * 4);
+    let mut visited: HashSet<Node> = HashSet::with_capacity(w * h * 3 * 4);
 
     // add initial moves
     for step in all_neighbours(start_pos, w, h) {
@@ -215,7 +219,7 @@ fn find_path(costs: &Vec<Vec<u32>>) -> u32 {
     while !frontier.is_empty() {
         let curr = frontier.pop().unwrap();
 
-        // we already processed given 
+        // we already processed given
         if visited.contains(&curr.node) {
             continue;
         }
@@ -224,13 +228,13 @@ fn find_path(costs: &Vec<Vec<u32>>) -> u32 {
         // have we reached goal?
 
         if curr.node.pos == end_pos {
-            let total_cost =  *node_cost.get(&curr.node).unwrap();
+            let total_cost = *node_cost.get(&curr.node).unwrap();
             println!("Reached goal {:#?}", curr.node);
             return total_cost;
         }
 
-        let neighbours = all_neighbours(curr.node.pos, w, h)
-            .filter(|n| is_valid_move(&curr.node, n));
+        let neighbours =
+            all_neighbours(curr.node.pos, w, h).filter(|n| is_valid_move(&curr.node, n));
 
         let curr_total_cost = *node_cost.get(&curr.node).unwrap();
 
@@ -247,7 +251,8 @@ fn find_path(costs: &Vec<Vec<u32>>) -> u32 {
                 } else {
                     // nothing to do  - longer path.
                 }
-            } else { // infinity node
+            } else {
+                // infinity node
                 frontier.push(CostNode {
                     cost: next_total_move_cost,
                     node: next,
@@ -264,7 +269,6 @@ fn solution(input: &str) -> usize {
         .lines()
         .map(|line| line.chars().map(|c| (c as u8 - b'0') as u32).collect())
         .collect();
-    print(&grid);
     find_path(&grid) as usize
 }
 
