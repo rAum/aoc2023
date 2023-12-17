@@ -1,8 +1,4 @@
-use std::time::Duration;
-use std::{
-    collections::{BinaryHeap, HashMap, HashSet, VecDeque},
-    thread,
-};
+use std::collections::{BinaryHeap, HashMap, HashSet};
 
 fn main() {
     let input = include_str!("input");
@@ -28,17 +24,6 @@ enum Dir {
     S,
     W,
     E,
-}
-
-impl Dir {
-    fn as_char(&self) -> char {
-        match self {
-            Dir::N => '^',
-            Dir::S => 'v',
-            Dir::W => '<',
-            Dir::E => '>',
-        }
-    }
 }
 
 #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
