@@ -81,13 +81,23 @@ fn solution(input: &str) -> i64 {
         .map(|line| {
             reg.captures(line)
                 .and_then(|cap| {
-                    let cmd = cap.name("cmd")?.as_str().chars().next()?;
-                    let len = cap.name("len")?.as_str().parse().ok()?;
+                    //let cmd = cap.name("cmd")?.as_str().chars().next()?;
+                    // let len = cap.name("len")?.as_str().parse().ok()?;
                     let hexcolor = cap.name("color")?.as_str().to_string();
-                    println!("{} {} {}", cmd, len, hexcolor);
+                    let hexcolor: Vec<char> = hexcolor.chars().collect();
+                    let cmd = match hexcolor.last().unwrap() {
+                        '0' => 'R',
+                        '1' => 'D',
+                        '2' => 'L',
+                        '3' => 'U',
+                        _ => panic!("Wrong number in hex!"),
+                    };
+                    let sub: String = (&hexcolor[1..hexcolor.len() - 1]).iter().collect();
+                    let hexnum = i64::from_str_radix(sub.as_str(), 16).unwrap();
+                    println!("{} {}={:#?}", cmd, sub, hexnum);
                     Some(Dig {
                         dir: Dir::from_char(&cmd),
-                        len: len,
+                        len: hexnum as usize,
                     })
                 })
                 .unwrap()
@@ -122,7 +132,7 @@ mod tests {
         U 3 (#a77fa3)
         L 2 (#015232)
         U 2 (#7a21e3)"#;
-        let expected_result = 62;
+        let expected_result = 952408144115;
 
         let result = solution(test_input);
 
