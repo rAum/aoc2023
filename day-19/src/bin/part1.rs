@@ -40,6 +40,12 @@ struct MachinePart {
     data: [i64; 4],
 }
 
+impl MachinePart {
+    fn rank(&self) -> i64 {
+        self.data.iter().sum()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum Decision {
     Accept,
@@ -59,7 +65,14 @@ enum Rule {
 #[derive(Debug)]
 struct Workflows {
     seq: Vec<Vec<Rule>>,
+    names: Vec<String>,
     rules: HashMap<String, usize>,
+}
+
+impl Workflows {
+    fn to_id(&self, name: &str) -> usize {
+        *self.rules.get(name).unwrap()
+    }
 }
 
 fn to_cat_index(letter: &str) -> usize {
@@ -72,10 +85,61 @@ fn to_cat_index(letter: &str) -> usize {
     }
 }
 
+fn apply(part: &MachinePart, rule: &Rule) -> Rule {
+    match rule {
+        any => any.clone(),
+    }
+}
+
+fn apply_rules(part: &MachinePart, workflows: &Workflows) -> bool {
+    let mut id = workflows.to_id("in");
+    while id < workflows.seq.len() {
+        let curr_rules = &workflows.seq[id];
+        println!("-> {}", workflows.names[id]);
+
+        for rule in curr_rules {
+            match apply(part, rule) {
+                Rule::Accept => return true,
+                Rule::Reject => return false,
+                Rule::GoTo(target) => {
+                    id = workflows.to_id(&target);
+                    break;
+                }
+                Rule::Greater(cmd, value, decision) => {
+                    if part.data[cmd as usize] > value {
+                        match decision {
+                            Decision::Accept => return true,
+                            Decision::Reject => return false,
+                            Decision::GoTo(target) => {
+                                id = workflows.to_id(&target);
+                                break;
+                            }
+                        }
+                    }
+                }
+                Rule::Less(cmd, value, decision) => {
+                    if part.data[cmd as usize] < value {
+                        match decision {
+                            Decision::Accept => return true,
+                            Decision::Reject => return false,
+                            Decision::GoTo(target) => {
+                                id = workflows.to_id(&target);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
 impl Workflows {
     fn new(input: &str) -> Self {
         let mut rules = HashMap::new();
         let mut seq = Vec::new();
+        let mut names = Vec::new();
 
         let re = Regex::new(r"(?P<name>\w+)\{(?P<cmds>.+)\}").unwrap();
         let rule_re =
@@ -124,10 +188,11 @@ impl Workflows {
 
             rules.insert(name.to_string(), seq.len());
             seq.push(ruleset);
+            names.push(name.to_string());
             println!("Checking {} line DONE", line);
         });
 
-        Workflows { seq, rules }
+        Workflows { seq, rules, names }
     }
 }
 
@@ -157,9 +222,15 @@ fn solution(input: &str) -> i64 {
     let parts = parse_machine_parts(parts);
     let rules = Workflows::new(rules);
 
-    dbg!(rules);
-
-    0
+    let result: i64 = parts
+        .iter()
+        .filter(|part| { 
+            let is_acc = apply_rules(&part, &rules);
+            println!("Checking part {:#?} = {}", part, is_acc);
+        is_acc })
+        .map(|part| part.rank())
+        .sum();
+    result
 }
 
 #[cfg(test)]
