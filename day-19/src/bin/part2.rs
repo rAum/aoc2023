@@ -65,13 +65,41 @@ impl PartRange {
             .product()
     }
 
+    fn contains(&self, which: Cmd, value: i64) -> bool {
+        let l = self.low.data[which as usize];
+        let h = self.high.data[which as usize];
+        l <= value && value < h
+    }
+
+    fn split_to_gt(&self, which: Cmd, value: i64) -> Self {
+        // we divide [low, high)
+        // to get (value, high)
+        let mut low = self.low.data.clone();
+        low[which as usize] = value + 1;
+        Self {
+            low : MachinePart { data: low },
+            high: MachinePart { data: self.high.data.clone() },
+        }
+    }
+
+    fn split_to_lt(&self, which: Cmd, value: i64) -> Self {
+        // we divide into [low, high)
+        // to get [low, value)
+        let mut high = self.high.data.clone();
+        high[which as usize] = value;
+        Self {
+            low: MachinePart { data: self.low.data.clone() },
+            high: MachinePart { data: high },
+        }
+    }
+
     /// Splits range into two ranges, given split point
     fn split(&self, which: Cmd, value: i64) -> (Self, Self) {
         let mut low = self.low.data.clone();
-        low[which as usize] = value + 1;
+        low[which as usize] = value;
         
         let mut high = self.high.data.clone();
-        high[which as usize] = value + 1;
+        high[which as usize] = value;
 
         // TODO: fix it without one-by-off error!
         let lower = Self {
@@ -215,8 +243,9 @@ fn apply_rules_to_range(range: &PartRange, workflows: &Workflows) -> u64 {
 
                 // cmd > value => cmd in [value, high)
                 // cmd > value => [low, value) (value, high]
-                let (low, high) = range.split(cmd, value + 1);
-                dbg!(&low, &high, value, &decision);
+                //let (low, high) = range.split(cmd, value - 1);
+                let high = range.split_to_gt(cmd, value);
+                //dbg!(&low, &high, value, &decision);
                 match decision {
                     Decision::Accept => ranges.push((high, Rule::Accept)),
                     Decision::GoTo(target) => {
@@ -228,7 +257,8 @@ fn apply_rules_to_range(range: &PartRange, workflows: &Workflows) -> u64 {
             },
             Rule::Less(cmd, value, decision) => {
                 // cmd < value => cmd in [low, value)
-                let (low, high) = range.split(cmd, value);
+                //let (low, high) = range.split(cmd, value);
+                let low = range.split_to_lt(cmd, value);
                 match decision {
                     Decision::Accept => ranges.push((low, Rule::Accept)),
                     Decision::GoTo(target) => {
@@ -294,24 +324,6 @@ impl Workflows {
     }
 }
 
-fn parse_machine_parts(input: &str) -> Vec<MachinePart> {
-    let reg = Regex::new(r"(?P<cmd>[xmas])=(?P<value>\d+),?").unwrap();
-
-    let parts: Vec<MachinePart> = input
-        .lines()
-        .map(|line| {
-            let mut data = [0; 4];
-            for mat in reg.find_iter(line) {
-                let captures = reg.captures(mat.as_str()).unwrap();
-                let cmd = to_cat_index(captures.name("cmd").unwrap().as_str());
-                data[cmd] = captures.name("value").unwrap().as_str().parse().unwrap();
-            }
-            MachinePart { data }
-        })
-        .collect();
-    parts
-}
-
 fn solution(input: &str) -> u64 {
     let mut in_rules_parts = input.split("\n\n");
     let rules = in_rules_parts.next().unwrap();
@@ -339,7 +351,24 @@ mod tests {
         dbg!(&l, &h);
         assert_eq!(l.volume(), (4000 as u64).pow(3) * 1000);
         assert_eq!(h.volume(), (4000 as u64).pow(3) * 3000);
+
+        //assert_eq!(range.volume(), l.volume() + h.volume());
     }
+
+    // #[test]
+    // fn test_split_gt() {
+    //     let cmd = Cmd::A;
+    //     let value = 123;
+    //     let gt = Rule::Greater(cmd, value, Decision::Accept);
+
+    //     let range = PartRange::new();
+    //     let (low, high) = range.split(cmd, value);
+    
+    //     assert_eq!(high.contains(cmd, value), true);
+    //     assert_eq!(high.contains(cmd, value - 1), false);
+    //     assert_eq!(low.contains(cmd, value), false);
+    //     assert_eq!(low.contains(cmd, value - 1), true);
+    // }
 
     #[test]
     fn test_0() {
