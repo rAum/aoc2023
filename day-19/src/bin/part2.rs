@@ -36,89 +36,54 @@ impl Into<usize> for Cmd {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct MachinePart {
-    data: [i64; 4],
-}
-
-#[derive(Debug, Clone, Copy)]
 struct PartRange {
-    low: MachinePart,
-    high: MachinePart, // high is open set
+    low: [i64; 4],
+    high: [i64; 4],
 }
 
 impl PartRange {
     fn new() -> Self {
-        let low_data = [1; 4];
-        let high_data = [4000 + 1; 4];
         Self {
-            low: MachinePart { data: low_data },
-            high: MachinePart { data: high_data },
+            low: [1; 4],
+            high: [4000; 4],
         }
     }
 
     fn volume(&self) -> u64 {
         self.low
-            .data
             .iter()
-            .zip(self.high.data.iter())
-            .map(|(a, b)| a.abs_diff(*b))
+            .zip(self.high.iter())
+            // adding +1 as we assume [a, b] range
+            .map(|(a, b)| b.abs_diff(*a) + 1)
             .product()
     }
 
     fn contains(&self, which: Cmd, value: i64) -> bool {
-        let l = self.low.data[which as usize];
-        let h = self.high.data[which as usize];
+        let l = self.low[which as usize];
+        let h = self.high[which as usize];
         l <= value && value < h
     }
 
     fn split_to_gt(&self, which: Cmd, value: i64) -> Self {
-        // we divide [low, high)
+        // we divide [low, high) v[cmd] > value
         // to get (value, high)
-        let mut low = self.low.data.clone();
-        low[which as usize] = value + 1;
+        let mut new_low = self.low.clone();
+        new_low[which as usize] = value + 1;
         Self {
-            low : MachinePart { data: low },
-            high: MachinePart { data: self.high.data.clone() },
+            low : new_low,
+            high: self.high,
         }
     }
 
     fn split_to_lt(&self, which: Cmd, value: i64) -> Self {
-        // we divide into [low, high)
+        // we divide into [low, high) v[cmd] < value
         // to get [low, value)
-        let mut high = self.high.data.clone();
-        high[which as usize] = value;
+        let mut new_high = self.high.clone();
+        new_high[which as usize] = value - 1;
         Self {
-            low: MachinePart { data: self.low.data.clone() },
-            high: MachinePart { data: high },
+            low: self.low,
+            high: new_high,
         }
-    }
-
-    /// Splits range into two ranges, given split point
-    fn split(&self, which: Cmd, value: i64) -> (Self, Self) {
-        let mut low = self.low.data.clone();
-        low[which as usize] = value;
-        
-        let mut high = self.high.data.clone();
-        high[which as usize] = value;
-
-        // TODO: fix it without one-by-off error!
-        let lower = Self {
-            low: MachinePart {
-                data: self.low.data,
-            },
-            high: MachinePart {
-                data: high,
-            },
-        };
-        let upper = Self {
-            low: MachinePart {
-                data: low,
-            },
-            high: MachinePart {
-                data: self.high.data,
-            },
-        };
-        (lower, upper)
     }
 }
 
@@ -161,55 +126,6 @@ fn to_cat_index(letter: &str) -> usize {
     }
 }
 
-fn apply(part: &MachinePart, rule: &Rule) -> Rule {
-    match rule {
-        any => any.clone(),
-    }
-}
-
-fn apply_rules(part: &MachinePart, workflows: &Workflows) -> bool {
-    let mut id = workflows.to_id("in");
-    while id < workflows.seq.len() {
-        let curr_rules = &workflows.seq[id];
-
-        for rule in curr_rules {
-            match apply(part, rule) {
-                Rule::Accept => return true,
-                Rule::Reject => return false,
-                Rule::GoTo(target) => {
-                    id = workflows.to_id(&target);
-                    break;
-                }
-                Rule::Greater(cmd, value, decision) => {
-                    if part.data[cmd as usize] > value {
-                        match decision {
-                            Decision::Accept => return true,
-                            Decision::Reject => return false,
-                            Decision::GoTo(target) => {
-                                id = workflows.to_id(&target);
-                                break;
-                            }
-                        }
-                    }
-                }
-                Rule::Less(cmd, value, decision) => {
-                    if part.data[cmd as usize] < value {
-                        match decision {
-                            Decision::Accept => return true,
-                            Decision::Reject => return false,
-                            Decision::GoTo(target) => {
-                                id = workflows.to_id(&target);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    false
-}
-
 fn apply_range(range: &PartRange, rules: &Vec<Rule>) -> Vec<(PartRange, Rule)> {
     rules.iter().filter_map(|rule| {
         match rule {
@@ -217,6 +133,28 @@ fn apply_range(range: &PartRange, rules: &Vec<Rule>) -> Vec<(PartRange, Rule)> {
             other => Some((*range, other.clone())),
         }
     }).collect()
+}
+
+fn process_gt(range: &PartRange, cmd: &Cmd, value: &i64, decision: &Decision) -> Option<(PartRange, Rule)> {
+    let high = range.split_to_gt(*cmd, *value);
+    match decision {
+        Decision::Accept => Some((high, Rule::Accept)),
+        Decision::GoTo(target) => {
+            Some((high, Rule::GoTo(target.clone())))
+        },
+        _other => None,
+    }
+}
+
+fn process_lt(range: &PartRange, cmd: &Cmd, value: &i64, decision: &Decision) -> Option<(PartRange, Rule)> {
+    let low = range.split_to_lt(*cmd, *value);
+    match decision {
+        Decision::Accept => Some((low, Rule::Accept)),
+        Decision::GoTo(target) => {
+            Some((low, Rule::GoTo(target.clone())))
+        },
+        _other => None,
+    }
 }
 
 fn apply_rules_to_range(range: &PartRange, workflows: &Workflows) -> u64 {
@@ -237,13 +175,31 @@ fn apply_rules_to_range(range: &PartRange, workflows: &Workflows) -> u64 {
             Rule::GoTo(target) => {
                 let id = workflows.to_id(&target);
                 let curr_rules = &workflows.seq[id];
-                ranges.append(&mut apply_range(&range, curr_rules));
+
+                for r in curr_rules.iter() {
+                    match r {
+                        Rule::Reject => { break },
+                        Rule::Accept => { ranges.push((range, Rule::Accept)); break },
+                        Rule::Greater(cmd, value, decision) => {
+                            if let Some(res) = process_gt(&range, cmd, value, decision) {
+                                ranges.push(res);
+                                break;
+                            }
+                        }
+                        Rule::Less(cmd, value, decision) => {
+                            if let Some(res) = process_lt(&range, cmd, value, decision) {
+                                ranges.push(res);
+                                break;
+                            }
+                        }
+                        other_rule => { 
+                            ranges.push((range, other_rule.clone())); 
+                            break 
+                        }
+                    }
+                }
             },
             Rule::Greater(cmd, value, decision) => {
-
-                // cmd > value => cmd in [value, high)
-                // cmd > value => [low, value) (value, high]
-                //let (low, high) = range.split(cmd, value - 1);
                 let high = range.split_to_gt(cmd, value);
                 //dbg!(&low, &high, value, &decision);
                 match decision {
@@ -251,13 +207,10 @@ fn apply_rules_to_range(range: &PartRange, workflows: &Workflows) -> u64 {
                     Decision::GoTo(target) => {
                         ranges.push((high, Rule::GoTo(target)));
                     }
-                    // Decision::Reject => ranges.append((low, Rule::Reject)),
                     _other => (), // ignore other rules
                 }
             },
             Rule::Less(cmd, value, decision) => {
-                // cmd < value => cmd in [low, value)
-                //let (low, high) = range.split(cmd, value);
                 let low = range.split_to_lt(cmd, value);
                 match decision {
                     Decision::Accept => ranges.push((low, Rule::Accept)),
@@ -345,30 +298,26 @@ mod tests {
     }
 
     #[test]
-    fn test_range_split() {
+    fn test_range_split_gt() {
         let range = PartRange::new();
-        let (l, h) = range.split(Cmd::M, 1000);
-        dbg!(&l, &h);
+        let h = range.split_to_gt(Cmd::M, 1000); // > 1000 so 3k elem
+        let l = range.split_to_lt(Cmd::M, 1000 + 1); // <= 1000
+        
+        assert_eq!(range.volume(), l.volume() + h.volume());
         assert_eq!(l.volume(), (4000 as u64).pow(3) * 1000);
         assert_eq!(h.volume(), (4000 as u64).pow(3) * 3000);
-
-        //assert_eq!(range.volume(), l.volume() + h.volume());
     }
 
-    // #[test]
-    // fn test_split_gt() {
-    //     let cmd = Cmd::A;
-    //     let value = 123;
-    //     let gt = Rule::Greater(cmd, value, Decision::Accept);
-
-    //     let range = PartRange::new();
-    //     let (low, high) = range.split(cmd, value);
-    
-    //     assert_eq!(high.contains(cmd, value), true);
-    //     assert_eq!(high.contains(cmd, value - 1), false);
-    //     assert_eq!(low.contains(cmd, value), false);
-    //     assert_eq!(low.contains(cmd, value - 1), true);
-    // }
+    #[test]
+    fn test_range_split_lt() {
+        let range = PartRange::new();
+        let l = range.split_to_lt(Cmd::M, 1001); // < 1001 so 1k elem
+        let h = range.split_to_gt(Cmd::M, 1000); // >= 1000
+        dbg!(l, h);
+        assert_eq!(range.volume(), l.volume() + h.volume());
+        assert_eq!(l.volume(), (4000 as u64).pow(3) * 1000);
+        assert_eq!(h.volume(), (4000 as u64).pow(3) * 3000);
+    }
 
     #[test]
     fn test_0() {
@@ -384,15 +333,12 @@ qqz{s>2770:qs,m<1801:hdj,R}
 gd{a>3333:R,R}
 hdj{m>838:A,pv}
 
-{x=787,m=2655,a=1222,s=2876}
-{x=1679,m=44,a=2067,s=496}
-{x=2036,m=264,a=79,s=2244}
-{x=2461,m=1339,a=466,s=291}
-{x=2127,m=1623,a=2188,s=1013}"#;
+"#;
         let expected_result = 167409079868000;
 
         let result = solution(test_input);
 
         assert_eq!(result, expected_result);
     }
+
 }
