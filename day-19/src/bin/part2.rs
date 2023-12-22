@@ -94,6 +94,23 @@ impl PartRange {
             high: new_high,
         }
     }
+
+    /// Splits into (ACCEPTED, INVALID)
+    fn split(&self, cmd: &Cmd, rule: &Rule) -> Option<(Self, Self)> {
+        match rule {
+            Rule::Greater(cmd, v, _) => {
+                let h = self.split_to_gt(*cmd, *v); // > v
+                let l = self.split_to_lt(*cmd, v + 1); // <= v
+                Some((h, l))
+            },
+            Rule::Less(cmd, v, _) => {
+                let h = self.split_to_gt(*cmd, v -1); // >= v
+                let l = self.split_to_lt(*cmd, *v); // < v
+                Some((l, h))
+            },
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -135,28 +152,6 @@ fn to_cat_index(letter: &str) -> usize {
     }
 }
 
-fn process_gt(range: &PartRange, cmd: &Cmd, value: &i64, decision: &Decision) -> Option<(PartRange, Rule)> {
-    let high = range.split_to_gt(*cmd, *value);
-    match decision {
-        Decision::Accept => Some((high, Rule::Accept)),
-        Decision::GoTo(target) => {
-            Some((high, Rule::GoTo(target.clone())))
-        },
-        _other => None,
-    }
-}
-
-fn process_lt(range: &PartRange, cmd: &Cmd, value: &i64, decision: &Decision) -> Option<(PartRange, Rule)> {
-    let low = range.split_to_lt(*cmd, *value);
-    match decision {
-        Decision::Accept => Some((low, Rule::Accept)),
-        Decision::GoTo(target) => {
-            Some((low, Rule::GoTo(target.clone())))
-        },
-        _other => None,
-    }
-}
-
 fn apply_rules_to_range(range: &PartRange, workflows: &Workflows) -> u64 {
     let mut ranges = Vec::new();
     ranges.push((*range, Rule::GoTo("in".to_string())));
@@ -167,57 +162,77 @@ fn apply_rules_to_range(range: &PartRange, workflows: &Workflows) -> u64 {
         let (range, rule): (PartRange, Rule) = ranges.pop().unwrap();
 
         match rule {
-            Rule::Accept => {
-                println!("Adding range {}", range);
-                result += range.volume();
-            },
-            Rule::Reject => (), // should not happen
             Rule::GoTo(target) => {
                 let id = workflows.to_id(&target);
                 let curr_rules = &workflows.seq[id];
+                let name = &workflows.names[id];
+
+                let mut curr_range = range.clone();
+                println!("Checking {:#?}: {}", name, curr_range);
 
                 for r in curr_rules.iter() {
+                    println!("Analyzing rule {:#?}", r);
+                    if curr_range.volume() == 0 {
+                        println!("!!!!");
+                        break;
+                    }
                     match r {
-                        Rule::Reject => { },
-                        Rule::Accept => { ranges.push((range, Rule::Accept)); break },
-                        Rule::Greater(cmd, value, decision) => {
-                            if let Some(res) = process_gt(&range, cmd, value, decision) {
-                                ranges.push(res.clone());
-                                if res.1 == Rule::Accept {
-                                    process_lt(&range, cmd, value, decision)
+                        Rule::Reject => { println!("Rejected: {}", curr_range); break; },
+                        Rule::Accept => { result += curr_range.volume(); break; },
+                        Rule::Greater(cmd, value, dec) => {
+                            if let Some((acc, rej)) = curr_range.split(cmd, &r) {
+                                match dec {
+                                    Decision::Accept => {
+                                        result += acc.volume();
+                                        println!("Add {:?}>{} -> {}", cmd, value, acc);
+                                        curr_range = rej;  
+                                    },
+                                    Decision::Reject => {
+                                        curr_range = rej;
+                                    },
+                                    Decision::GoTo(target) => {
+                                        println!("{} => {}", acc, target);
+                                        ranges.push((acc, Rule::GoTo(target.clone())));
+                                        curr_range = rej;
+                                    }
                                 }
+                            } else {
+                                unreachable!()
                             }
                         }
-                        Rule::Less(cmd, value, decision) => {
-                            if let Some(res) = process_lt(&range, cmd, value, decision) {
-                                ranges.push(res.clone());
-                                if res.1 == Rule::Accept {
-                                    break;
+                        Rule::Less(cmd, value, dec) => {
+                            if let Some((acc, rej)) = curr_range.split(cmd, &r) {
+                                match dec {
+                                    Decision::Accept => {
+                                        result += acc.volume();
+                                        println!("Add {:?}>{} -> {}", cmd, value, acc);
+                                        curr_range = rej;
+                                    },
+                                    Decision::Reject => {
+                                        curr_range = rej;
+                                    },
+                                    Decision::GoTo(target) => {
+                                        println!("{} => {}", acc, target);
+                                        ranges.push((acc, Rule::GoTo(target.clone())));
+                                        curr_range = rej;
+                                    }
                                 }
+                            } else {
+                                unreachable!();
                             }
-                        }
+                        },
                         other_rule => { 
-                            ranges.push((range, other_rule.clone())); 
+                            println!("{:?} {}", other_rule, curr_range);
+                            ranges.push((curr_range, other_rule.clone()));
+                            break;
                         }
                     }
                 }
+            println!("Done with {}", name);
             },
-            Rule::Greater(cmd, value, decision) => {
-                if let Some(res) = process_gt(&range, &cmd, &value, &decision) {
-                    ranges.push(res.clone());
-                    if res.1 == Rule::Accept {
-                        break;
-                    }
-                }
-            },
-            Rule::Less(cmd, value, decision) => {
-                if let Some(res) = process_lt(&range, &cmd, &value, &decision) {
-                    ranges.push(res.clone());
-                    if res.1 == Rule::Accept {
-                        break;
-                    }
-                }
-            },
+            _ => {
+                unreachable!()
+            }
         }
     }
     result
@@ -304,6 +319,22 @@ mod tests {
         assert_eq!(range.volume(), l.volume() + h.volume());
         assert_eq!(l.volume(), (4000 as u64).pow(3) * 1000);
         assert_eq!(h.volume(), (4000 as u64).pow(3) * 3000);
+    }
+
+    #[test]
+    fn test_range_split1() {
+        let range = PartRange::new();
+        if let Some((l, h)) = range.split(&Cmd::X, &Rule::Greater(Cmd::X, 123, Decision::Accept)) {
+            assert_eq!(l.volume() + h.volume(), range.volume());
+        }
+    }
+
+    #[test]
+    fn test_range_split2() {
+        let range = PartRange::new();
+        if let Some((l, h)) = range.split(&Cmd::X, &Rule::Less(Cmd::X, 123, Decision::Accept)) {
+            assert_eq!(l.volume() + h.volume(), range.volume());
+        }
     }
 
     #[test]
