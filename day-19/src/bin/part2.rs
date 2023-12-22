@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Display};
 
 use regex::Regex;
 
@@ -39,6 +39,15 @@ impl Into<usize> for Cmd {
 struct PartRange {
     low: [i64; 4],
     high: [i64; 4],
+}
+
+impl std::fmt::Display for PartRange {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        (0..self.low.len()).for_each(|value| {
+            f.write_fmt(format_args!("{:?}=[{},{}] ", Cmd::from(value), self.low[value], self.high[value]));
+        });
+        Ok(())
+    }
 }
 
 impl PartRange {
@@ -126,15 +135,6 @@ fn to_cat_index(letter: &str) -> usize {
     }
 }
 
-fn apply_range(range: &PartRange, rules: &Vec<Rule>) -> Vec<(PartRange, Rule)> {
-    rules.iter().filter_map(|rule| {
-        match rule {
-            Rule::Reject => None,
-            other => Some((*range, other.clone())),
-        }
-    }).collect()
-}
-
 fn process_gt(range: &PartRange, cmd: &Cmd, value: &i64, decision: &Decision) -> Option<(PartRange, Rule)> {
     let high = range.split_to_gt(*cmd, *value);
     match decision {
@@ -168,7 +168,7 @@ fn apply_rules_to_range(range: &PartRange, workflows: &Workflows) -> u64 {
 
         match rule {
             Rule::Accept => {
-                println!("Adding range {:#?}", range);
+                println!("Adding range {}", range);
                 result += range.volume();
             },
             Rule::Reject => (), // should not happen
@@ -178,46 +178,44 @@ fn apply_rules_to_range(range: &PartRange, workflows: &Workflows) -> u64 {
 
                 for r in curr_rules.iter() {
                     match r {
-                        Rule::Reject => { break },
+                        Rule::Reject => { },
                         Rule::Accept => { ranges.push((range, Rule::Accept)); break },
                         Rule::Greater(cmd, value, decision) => {
                             if let Some(res) = process_gt(&range, cmd, value, decision) {
-                                ranges.push(res);
-                                break;
+                                ranges.push(res.clone());
+                                if res.1 == Rule::Accept {
+                                    process_lt(&range, cmd, value, decision)
+                                }
                             }
                         }
                         Rule::Less(cmd, value, decision) => {
                             if let Some(res) = process_lt(&range, cmd, value, decision) {
-                                ranges.push(res);
-                                break;
+                                ranges.push(res.clone());
+                                if res.1 == Rule::Accept {
+                                    break;
+                                }
                             }
                         }
                         other_rule => { 
                             ranges.push((range, other_rule.clone())); 
-                            break 
                         }
                     }
                 }
             },
             Rule::Greater(cmd, value, decision) => {
-                let high = range.split_to_gt(cmd, value);
-                //dbg!(&low, &high, value, &decision);
-                match decision {
-                    Decision::Accept => ranges.push((high, Rule::Accept)),
-                    Decision::GoTo(target) => {
-                        ranges.push((high, Rule::GoTo(target)));
+                if let Some(res) = process_gt(&range, &cmd, &value, &decision) {
+                    ranges.push(res.clone());
+                    if res.1 == Rule::Accept {
+                        break;
                     }
-                    _other => (), // ignore other rules
                 }
             },
             Rule::Less(cmd, value, decision) => {
-                let low = range.split_to_lt(cmd, value);
-                match decision {
-                    Decision::Accept => ranges.push((low, Rule::Accept)),
-                    Decision::GoTo(target) => {
-                        ranges.push((low, Rule::GoTo(target)));
+                if let Some(res) = process_lt(&range, &cmd, &value, &decision) {
+                    ranges.push(res.clone());
+                    if res.1 == Rule::Accept {
+                        break;
                     }
-                    _other => (), // ignore other rules
                 }
             },
         }
@@ -313,7 +311,9 @@ mod tests {
         let range = PartRange::new();
         let l = range.split_to_lt(Cmd::M, 1001); // < 1001 so 1k elem
         let h = range.split_to_gt(Cmd::M, 1000); // >= 1000
-        dbg!(l, h);
+
+        println!("{}", range);
+        
         assert_eq!(range.volume(), l.volume() + h.volume());
         assert_eq!(l.volume(), (4000 as u64).pow(3) * 1000);
         assert_eq!(h.volume(), (4000 as u64).pow(3) * 3000);
