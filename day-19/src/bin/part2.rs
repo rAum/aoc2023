@@ -44,7 +44,12 @@ struct PartRange {
 impl std::fmt::Display for PartRange {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         (0..self.low.len()).for_each(|value| {
-            f.write_fmt(format_args!("{:?}=[{},{}] ", Cmd::from(value), self.low[value], self.high[value]));
+            f.write_fmt(format_args!(
+                "{:?}=[{},{}] ",
+                Cmd::from(value),
+                self.low[value],
+                self.high[value]
+            ));
         });
         Ok(())
     }
@@ -79,7 +84,7 @@ impl PartRange {
         let mut new_low = self.low.clone();
         new_low[which as usize] = value + 1;
         Self {
-            low : new_low,
+            low: new_low,
             high: self.high,
         }
     }
@@ -102,12 +107,12 @@ impl PartRange {
                 let h = self.split_to_gt(*cmd, *v); // > v
                 let l = self.split_to_lt(*cmd, v + 1); // <= v
                 Some((h, l))
-            },
+            }
             Rule::Less(cmd, v, _) => {
-                let h = self.split_to_gt(*cmd, v -1); // >= v
+                let h = self.split_to_gt(*cmd, v - 1); // >= v
                 let l = self.split_to_lt(*cmd, *v); // < v
                 Some((l, h))
-            },
+            }
             _ => None,
         }
     }
@@ -177,19 +182,25 @@ fn apply_rules_to_range(range: &PartRange, workflows: &Workflows) -> u64 {
                         break;
                     }
                     match r {
-                        Rule::Reject => { println!("Rejected: {}", curr_range); break; },
-                        Rule::Accept => { result += curr_range.volume(); break; },
+                        Rule::Reject => {
+                            println!("Rejected: {}", curr_range);
+                            break;
+                        }
+                        Rule::Accept => {
+                            result += curr_range.volume();
+                            break;
+                        }
                         Rule::Greater(cmd, value, dec) => {
                             if let Some((acc, rej)) = curr_range.split(cmd, &r) {
                                 match dec {
                                     Decision::Accept => {
                                         result += acc.volume();
                                         println!("Add {:?}>{} -> {}", cmd, value, acc);
-                                        curr_range = rej;  
-                                    },
+                                        curr_range = rej;
+                                    }
                                     Decision::Reject => {
                                         curr_range = rej;
-                                    },
+                                    }
                                     Decision::GoTo(target) => {
                                         println!("{} => {}", acc, target);
                                         ranges.push((acc, Rule::GoTo(target.clone())));
@@ -207,10 +218,10 @@ fn apply_rules_to_range(range: &PartRange, workflows: &Workflows) -> u64 {
                                         result += acc.volume();
                                         println!("Add {:?}>{} -> {}", cmd, value, acc);
                                         curr_range = rej;
-                                    },
+                                    }
                                     Decision::Reject => {
                                         curr_range = rej;
-                                    },
+                                    }
                                     Decision::GoTo(target) => {
                                         println!("{} => {}", acc, target);
                                         ranges.push((acc, Rule::GoTo(target.clone())));
@@ -220,16 +231,16 @@ fn apply_rules_to_range(range: &PartRange, workflows: &Workflows) -> u64 {
                             } else {
                                 unreachable!();
                             }
-                        },
-                        other_rule => { 
+                        }
+                        other_rule => {
                             println!("{:?} {}", other_rule, curr_range);
                             ranges.push((curr_range, other_rule.clone()));
                             break;
                         }
                     }
                 }
-            println!("Done with {}", name);
-            },
+                println!("Done with {}", name);
+            }
             _ => {
                 unreachable!()
             }
@@ -315,7 +326,7 @@ mod tests {
         let range = PartRange::new();
         let h = range.split_to_gt(Cmd::M, 1000); // > 1000 so 3k elem
         let l = range.split_to_lt(Cmd::M, 1000 + 1); // <= 1000
-        
+
         assert_eq!(range.volume(), l.volume() + h.volume());
         assert_eq!(l.volume(), (4000 as u64).pow(3) * 1000);
         assert_eq!(h.volume(), (4000 as u64).pow(3) * 3000);
@@ -344,7 +355,7 @@ mod tests {
         let h = range.split_to_gt(Cmd::M, 1000); // >= 1000
 
         println!("{}", range);
-        
+
         assert_eq!(range.volume(), l.volume() + h.volume());
         assert_eq!(l.volume(), (4000 as u64).pow(3) * 1000);
         assert_eq!(h.volume(), (4000 as u64).pow(3) * 3000);
@@ -371,5 +382,4 @@ hdj{m>838:A,pv}
 
         assert_eq!(result, expected_result);
     }
-
 }
